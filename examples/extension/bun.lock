@@ -6,6 +6,7 @@
       "dependencies": {
         "@huggingface/transformers": "^3.4.0",
         "kokoro-js": "^1.2.0",
+        "phonemizer": "^1.2.1",
       },
       "devDependencies": {
         "copy-webpack-plugin": "^11.0.0",
