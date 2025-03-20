@@ -37,6 +37,15 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'"
   },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "*.wasm",
+        "*worker*.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "16": "icons/icon.png",
     "48": "icons/icon.png",

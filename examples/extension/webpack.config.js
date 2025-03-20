@@ -1,4 +1,3 @@
-
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -36,7 +35,14 @@ const config = {
                 {
                     from: "src/popup.css",
                     to: "popup.css"
+                },
+                // Copy ONNX runtime WASM files for transformers.js
+                {
+                    from: "node_modules/@huggingface/transformers/dist/*.wasm",
+                    to: "[name][ext]",
+                    noErrorOnMissing: true
                 }
+                // Worker files copy removed as they may not exist
             ],
         })
     ],
