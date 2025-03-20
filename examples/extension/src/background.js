@@ -210,16 +210,7 @@ export async function phonemize(text, language = "a", norm = true) {
 
 import { env, pipeline } from '@huggingface/transformers';
 
-// Configure transformers.js environment
-// This is critical for proper WASM handling in Chrome extensions
-env.useBrowserCache = false; // Don't use browser cache for models
-env.allowLocalModels = false; // Don't look for models on disk
-// Don't set explicit WASM paths as they'll be handled by the extension
-
-// Configure WebGPU as the preferred backend
 console.log("Configuring WebGPU as preferred backend");
-// Enable WebGPU backend
-env.backends.onnx.wasm.numThreads = 1; // Reduce CPU threads when using GPU
 env.backends.onnx.preferredBackend = "webgpu"; // Set WebGPU as preferred
 env.useFakeWebGPU = false; // Make sure we're using the real WebGPU, not a fallback
 
@@ -353,7 +344,7 @@ class KokoroPipelineSingleton {
                 const { AutoTokenizer, Tensor, PreTrainedModel } = await import('@huggingface/transformers');
                 
                 // Initialize tokenizer
-                this.tokenizer = await AutoTokenizer.from_pretrained(this.model_id, { 
+                this.tokenizer = await AutoTokenizer.from_pretrained(this.model_id, {
                     progress_callback
                 });
                 
