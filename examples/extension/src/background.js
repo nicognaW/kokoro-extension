@@ -209,7 +209,6 @@ export async function phonemize(text, language = "a", norm = true) {
 // END OF kokoro.js phonemize.js
 
 import { env, pipeline } from '@huggingface/transformers';
-// Remove custom pipeline import as we'll use the standard pipeline
 
 // Configure transformers.js environment
 // This is critical for proper WASM handling in Chrome extensions
@@ -217,14 +216,40 @@ env.useBrowserCache = false; // Don't use browser cache for models
 env.allowLocalModels = false; // Don't look for models on disk
 // Don't set explicit WASM paths as they'll be handled by the extension
 
+// Configure WebGPU as the preferred backend
+console.log("Configuring WebGPU as preferred backend");
+// Enable WebGPU backend
+env.backends.onnx.wasm.numThreads = 1; // Reduce CPU threads when using GPU
+env.backends.onnx.preferredBackend = "webgpu"; // Set WebGPU as preferred
+env.useFakeWebGPU = false; // Make sure we're using the real WebGPU, not a fallback
+
+// Log configuration
+console.log("WebGPU configuration:", {
+    preferredBackend: env.backends.onnx.preferredBackend,
+    numThreads: env.backends.onnx.wasm.numThreads,
+    useFakeWebGPU: env.useFakeWebGPU,
+});
+
 class PipelineSingleton {
     static task = 'text-classification';
     static model = 'Xenova/distilbert-base-uncased-finetuned-sst-2-english';
     static instance = null;
 
     static async getInstance(progress_callback = null) {
-        this.instance ??= pipeline(this.task, this.model, { progress_callback });
-
+        if (this.instance === null) {
+            try {
+                this.instance = await pipeline(this.task, this.model, {
+                    progress_callback,
+                    config: {
+                        // Explicitly set WebGPU as preferred backend for this model
+                        execution_provider: 'webgpu'
+                    }
+                });
+            } catch (error) {
+                console.error("Error initializing classification pipeline:", error);
+                throw error;
+            }
+        }
         return this.instance;
     }
 }
@@ -238,14 +263,13 @@ class TTSPipelineSingleton {
     static async getInstance(progress_callback = null) {
         if (this.instance === null) {
             try {
-                console.log("Initializing TTS pipeline...");
-                
-                // Initialize TTS using transformers.js pipeline
-                this.instance = await pipeline(this.task, this.model, { 
-                    progress_callback: progress_callback
+                this.instance = await pipeline(this.task, this.model, {
+                    progress_callback,
+                    config: {
+                        // Explicitly set WebGPU as preferred backend for this model
+                        execution_provider: 'webgpu'
+                    }
                 });
-                
-                console.log("TTS pipeline initialized successfully");
             } catch (error) {
                 console.error("Error initializing TTS pipeline:", error);
                 throw error;
@@ -338,7 +362,11 @@ class KokoroPipelineSingleton {
                 // Initialize model using standard PreTrainedModel approach
                 this.model = await PreTrainedModel.from_pretrained(this.model_id, {
                     progress_callback,
-                    model_file: 'model.onnx'
+                    model_file: 'model.onnx',
+                    config: {
+                        // Explicitly set WebGPU as preferred backend for this model
+                        execution_provider: 'webgpu'
+                    }
                 });
                 
                 console.log("Model loaded successfully");
@@ -402,8 +430,12 @@ class KokoroPipelineSingleton {
                             style_shape: style.dims,
                             speed_shape: speedTensor.dims
                         });
+                        console.log("Using WebGPU for model inference");
                         
-                        const outputs = await KokoroPipelineSingleton.model(inputs);
+                        // Run the model with WebGPU execution provider
+                        const outputs = await KokoroPipelineSingleton.model(inputs, {
+                            execution_provider: 'webgpu'
+                        });
                         console.log("Model outputs received");
                         
                         // Create a RawAudio object
@@ -488,6 +520,7 @@ const generateKokoroSpeech = async (text) => {
     try {
         // Log available backends in transformers.js
         console.log("Available backends:", env.backends);
+        console.log("Using WebGPU as preferred backend for Kokoro");
         
         // Get the Kokoro TTS pipeline instance with progress logging
         let kokoro = await KokoroPipelineSingleton.getInstance((progress) => {
